@@ -7,7 +7,7 @@ FLZT自动签到主逻辑模块
 import requests
 import logging
 from notification import BarkNotification
-from config import EMAIL, PASSWORD, LOGIN_URL, USER_INFO_URL, CONVERT_TRAFFIC_URL, CHECK_IN_URL
+from config import EMAIL, PASSWORD, LOGIN_URL, USER_INFO_URL, CHECK_IN_URL
 
 logger = logging.getLogger(__name__)
 
@@ -81,66 +81,49 @@ class FLZT:
             result = r.json()
             if result.get('data'):
                 logger.info(f'[{self.account_info}] 签到成功: {result}')
-            else:
-                logger.warning(f'[{self.account_info}] 签到可能失败: {result}')
-        except Exception as e:
-            logger.error(f'[{self.account_info}] 签到失败: {e}')
-            return
 
-        traffic = 0
-        # 获取用户信息
-        try:
-            r = self.s.get(url=USER_INFO_URL)
-            data = r.json()
-            if data.get('data') and data['data'].get('checkin_reward_traffic'):
-                traffic = int(data['data']['checkin_reward_traffic'])
-                logger.info(f'[{self.account_info}] 获取用户信息成功，剩余签到流量: {format_traffic(traffic)}')
-            else:
-                logger.warning(f'[{self.account_info}] 未获取到流量信息: {data}')
-                return
-        except Exception as e:
-            logger.error(f'[{self.account_info}] 获取用户信息失败: {e}')
-            return
-
-        # 转换流量
-        if traffic > 0:
-            try:
-                r = self.s.post(url=CONVERT_TRAFFIC_URL, data={'transfer': traffic})
-                result = r.json()
-                if result.get('data'):
-                    logger.info(f'[{self.account_info}] 转换流量成功: {result}')
-
-                    # 发送成功通知
+                # 获取用户信息以显示当前状态
+                try:
+                    r = self.s.get(url=USER_INFO_URL)
+                    data = r.json()
+                    if data.get('data'):
+                        # 发送签到成功通知
+                        notification = BarkNotification(
+                            title='FLZT签到成功 🎉',
+                            content=f'账号: {self.account_info}\n签到成功\n状态: ✅ 完成'
+                        )
+                        notification.notify()
+                    else:
+                        # 获取用户信息失败，但仍发送签到成功通知
+                        notification = BarkNotification(
+                            title='FLZT签到成功 🎉',
+                            content=f'账号: {self.account_info}\n签到完成\n状态: ✅ 成功'
+                        )
+                        notification.notify()
+                except Exception as e:
+                    logger.warning(f'[{self.account_info}] 获取用户信息失败，但签到已完成: {e}')
+                    # 发送签到成功通知
                     notification = BarkNotification(
                         title='FLZT签到成功 🎉',
-                        content=f'账号: {self.account_info}\n签到流量转换成功\n已转换流量: {format_traffic(traffic)}\n状态: ✅ 成功'
+                        content=f'账号: {self.account_info}\n签到完成\n状态: ✅ 成功'
                     )
                     notification.notify()
-                else:
-                    error_msg = f'[{self.account_info}] 转换流量可能失败: {result}'
-                    logger.warning(error_msg)
-                    # 转换失败时发送通知
-                    notification = BarkNotification(
-                        title='FLZT流量转换警告',
-                        content=f'账号: {self.account_info}\n转换流量可能失败\n状态: ⚠️ 警告'
-                    )
-                    notification.notify()
-            except Exception as e:
-                error_msg = f'[{self.account_info}] 转换流量失败: {e}'
+            else:
+                error_msg = f'[{self.account_info}] 签到失败: {result}'
                 logger.error(error_msg)
-                # 转换失败时发送通知
+                # 签到失败时发送通知
                 notification = BarkNotification(
-                    title='FLZT流量转换失败',
-                    content=f'账号: {self.account_info}\n转换流量失败\n状态: ❌ 失败'
+                    title='FLZT签到失败',
+                    content=f'账号: {self.account_info}\n错误信息: {result}\n状态: ❌ 失败'
                 )
                 notification.notify()
-        else:
-            logger.info(f'[{self.account_info}] 没有可转换的流量')
-
-            # 没有流量时发送通知
+        except Exception as e:
+            error_msg = f'[{self.account_info}] 签到失败: {e}'
+            logger.error(error_msg)
+            # 签到失败时发送通知
             notification = BarkNotification(
-                title='FLZT签到完成',
-                content=f'账号: {self.account_info}\n今日已签到\n没有可转换的流量\n状态: ⓘ 完成'
+                title='FLZT签到失败',
+                content=f'账号: {self.account_info}\n错误信息: {e}\n状态: ❌ 失败'
             )
             notification.notify()
 
