@@ -7,6 +7,9 @@
 
 import os
 
+# 流量转换配置
+CONVERT_TRAFFIC = True  # 是否转换流量，True/False
+CONVERT_AMOUNT = 1000      # 转换多少流量，0表示全部转换，>0表示转换指定MB数
 # 从青龙面板环境变量读取
 BASE_URL = os.environ.get('FLZT_BASE_URL', '').strip()
 if not BASE_URL:
